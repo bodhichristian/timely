@@ -1,5 +1,7 @@
 import os
 import json
+import re
+from collections import Counter
 import streamlit as st
 
 from smart_triage import SmartIssueTriage
@@ -44,6 +46,8 @@ def main():
             background: rgba(0,0,0,0.04) !important;
             transition: all 120ms ease-in-out;
         }
+        .hl { background: #FEF08A; padding: 0.05rem 0.15rem; border-radius: 0.25rem; }
+        .hlbox { border: 1px solid rgba(0,0,0,0.08); border-radius: 0.5rem; padding: 0.5rem; background: #fff; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -54,18 +58,17 @@ def main():
     if not repo_options:
         repo_options = ['unknown_repo']
 
-    # Handle reset BEFORE rendering widgets
+    # Handle reset BEFORE rendering widgets: clear inputs and state to defaults
     if st.session_state.get('do_reset'):
-        for k in ['input_title', 'input_body', 'input_repo', 'last_pred', 'selected_tags']:
-            st.session_state.pop(k, None)
+        st.session_state['input_title'] = ''
+        st.session_state['input_body'] = ''
+        if repo_options:
+            st.session_state['input_repo'] = repo_options[0]
+        st.session_state.pop('last_pred', None)
+        st.session_state.pop('selected_tags', None)
         st.session_state['do_reset'] = False
 
-    # Debug section (UI only, not wired to results yet)
-    st.sidebar.header('Debug')
-    st.sidebar.caption('Developer controls (not applied to results)')
-    _dbg_threshold = st.sidebar.slider(
-        'Confidence threshold (debug)', min_value=0.0, max_value=1.0, value=0.30, step=0.05
-    )
+    # (Debug sidebar removed)
 
     with st.form('issue_form'):
         title = st.text_input('Issue Title', '', key='input_title')
@@ -86,7 +89,13 @@ def main():
     # Reset form and state for a clean input and prediction
     if st.button('Reset'):
         st.session_state['do_reset'] = True
-        st.experimental_rerun()
+        try:
+            st.rerun()
+        except Exception:
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.stop()
 
     # Render last prediction suggestions (persist after clicks / reruns)
     pred = st.session_state.get('last_pred')
@@ -95,6 +104,51 @@ def main():
 
         if 'selected_tags' not in st.session_state:
             st.session_state['selected_tags'] = set()
+
+        # Inline highlight preview: top-5 TF-IDF n-grams from current input
+        title_val = st.session_state.get('input_title', '')
+        body_val = st.session_state.get('input_body', '')
+        combined_text = f"{title_val}\n{body_val}"
+        top_pairs = []
+        try:
+            vec = triage.tfidf_vectorizer
+            Xv = vec.transform([combined_text])
+            weights = Xv.toarray()[0]
+            feature_names = getattr(vec, 'get_feature_names_out', vec.get_feature_names)()
+            present_idxs = [i for i, w in enumerate(weights) if w > 0]
+            top_idxs = sorted(present_idxs, key=lambda i: weights[i], reverse=True)[:5]
+            top_tokens = [feature_names[i] for i in top_idxs]
+            top_pairs = [(feature_names[i], float(weights[i])) for i in top_idxs]
+
+            # Fallback: if no TF-IDF overlap, pick top 5 tokens by frequency using vectorizer analyzer
+            if not top_tokens:
+                analyzer = vec.build_analyzer()
+                toks = [t for t in analyzer(combined_text) if len(t) >= 3]
+                counts = Counter(toks)
+                most_common = [tok for tok, _ in counts.most_common(5)]
+                top_tokens = most_common
+                top_pairs = [(tok, float(counts[tok])) for tok in most_common]
+
+            def highlight_html(text: str, tokens):
+                html = text
+                for tok in sorted(tokens, key=lambda t: len(t), reverse=True):
+                    if not tok:
+                        continue
+                    pattern = re.compile(re.escape(tok), flags=re.IGNORECASE)
+                    html = pattern.sub(lambda m: f"<span class='hl'>{m.group(0)}</span>", html)
+                return html
+
+            if any(top_tokens):
+                st.caption('Top terms highlighted in your input')
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown('Title preview:')
+                    st.markdown(f"<div class='hlbox'>{highlight_html(title_val, top_tokens)}</div>", unsafe_allow_html=True)
+                with c2:
+                    st.markdown('Description preview:')
+                    st.markdown(f"<div class='hlbox' style='min-height: 6rem;'>{highlight_html(body_val, top_tokens)}</div>", unsafe_allow_html=True)
+        except Exception:
+            pass
 
         st.success('Suggested tags:')
         cols = st.columns(len(tags) if tags else 1)
@@ -127,7 +181,12 @@ def main():
                         st.session_state['selected_tags'].add(tag)
 
         with st.expander('Details'):
-            st.json(pred)
+            st.markdown('Top 5 terms influencing suggestions (TF-IDF weight or frequency fallback):')
+            if top_pairs:
+                for tok, w in top_pairs:
+                    st.write(f"- {tok} — {w:.3f}")
+            else:
+                st.info('No significant terms found in this input.')
 
 
 if __name__ == '__main__':
