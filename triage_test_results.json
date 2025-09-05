@@ -1,0 +1,62 @@
+[
+  {
+    "primary_category": {
+      "category": "is_bug_cat",
+      "confidence": 0.9862871766090393,
+      "action_needed": true
+    },
+    "secondary_suggestions": [],
+    "triage_recommendations": [
+      {
+        "type": "high_confidence_bug",
+        "message": "High confidence bug report - Immediate review recommended",
+        "priority": "high"
+      }
+    ],
+    "repo_context": {
+      "repository": "angular/angular",
+      "typical_response_time": "2-3 days",
+      "similar_issues_count": 5
+    }
+  },
+  {
+    "primary_category": {
+      "category": "is_bug_cat",
+      "confidence": 0.963935911655426,
+      "action_needed": true
+    },
+    "secondary_suggestions": [],
+    "triage_recommendations": [
+      {
+        "type": "high_confidence_bug",
+        "message": "High confidence bug report - Immediate review recommended",
+        "priority": "high"
+      }
+    ],
+    "repo_context": {
+      "repository": "microsoft/vscode",
+      "typical_response_time": "2-3 days",
+      "similar_issues_count": 5
+    }
+  },
+  {
+    "primary_category": {
+      "category": "is_bug_cat",
+      "confidence": 0.9819719195365906,
+      "action_needed": true
+    },
+    "secondary_suggestions": [],
+    "triage_recommendations": [
+      {
+        "type": "high_confidence_bug",
+        "message": "High confidence bug report - Immediate review recommended",
+        "priority": "high"
+      }
+    ],
+    "repo_context": {
+      "repository": "angular/angular",
+      "typical_response_time": "2-3 days",
+      "similar_issues_count": 5
+    }
+  }
+]
