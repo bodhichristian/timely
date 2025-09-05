@@ -32,7 +32,7 @@ def format_tags(pred: dict, min_conf: float = 0.30):
 
 def main():
     st.set_page_config(page_title='Smart Issue Triage – Tag Suggester', page_icon='🧠', layout='centered')
-    st.title('🧠 Smart Issue Triage')
+    st.title('💡 Smart Issue Triage')
     st.subheader('Suggest tags from an issue title and description')
 
     # Global capsule button styling
